@@ -19,87 +19,68 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Read Flutter SDK version from pubspec.yaml
-        id: read_flutter_version
-        run: |
-          # Baca environment sdk dari pubspec.yaml
-          if [ -f "pubspec.yaml" ]; then
-            SDK_LINE=$(grep -E "^environment:" -A 2 pubspec.yaml | grep "sdk:" | sed 's/.*sdk: "\(.*\)"/\1/' || echo "")
-            
-            # Ekstrak versi minimal
-            if [[ -n "$SDK_LINE" ]]; then
-              MIN_VERSION=$(echo "$SDK_LINE" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-              echo "min_version=$MIN_VERSION" >> $GITHUB_OUTPUT
-              echo "full_sdk=$SDK_LINE" >> $GITHUB_OUTPUT
-              echo "✅ Found SDK requirement: $SDK_LINE"
-              echo "📌 Minimum version: $MIN_VERSION"
-            else
-              echo "min_version=3.0.0" >> $GITHUB_OUTPUT
-              echo "full_sdk=>=3.0.0" >> $GITHUB_OUTPUT
-              echo "⚠️ No SDK version found, using default 3.0.0"
-            fi
-          else
-            echo "min_version=3.0.0" >> $GITHUB_OUTPUT
-            echo "full_sdk=>=3.0.0" >> $GITHUB_OUTPUT
-            echo "⚠️ pubspec.yaml not found, using default 3.0.0"
-          fi
+      - name: Setup Android SDK with NDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: |
+            platforms;android-36
+            build-tools;36.0.0
+            ndk;27.0.12077973
+            cmake;3.22.1
 
-      - name: Determine Flutter version
-        id: flutter_version
-        run: |
-          MIN_VER="${{ steps.read_flutter_version.outputs.min_version }}"
-          
-          # Mapping versi Flutter yang tersedia di subosito/flutter-action
-          # List versi yang tersedia: https://github.com/subosito/flutter-action#supported-versions
-          
-          # Extract major.minor version
-          MAJOR_MINOR=$(echo "$MIN_VER" | cut -d. -f1-2)
-          
-          case "$MAJOR_MINOR" in
-            3.22|3.23|3.24|3.25|3.26|3.27|3.28|3.29|3.30|3.31|3.32|3.33|3.34|3.35|3.36|3.37|3.38|3.39|3.40|3.41|3.42|3.43|3.44|3.45|3.46|3.47)
-              FLUTTER_VER="3.22.4"
-              ;;
-            3.19|3.20|3.21)
-              FLUTTER_VER="3.19.6"
-              ;;
-            3.16|3.17|3.18)
-              FLUTTER_VER="3.16.9"
-              ;;
-            3.13|3.14|3.15)
-              FLUTTER_VER="3.13.9"
-              ;;
-            3.10|3.11|3.12)
-              FLUTTER_VER="3.10.6"
-              ;;
-            3.7|3.8|3.9)
-              FLUTTER_VER="3.7.12"
-              ;;
-            3.4|3.5|3.6)
-              FLUTTER_VER="3.3.10"
-              ;;
-            3.0|3.1|3.2|3.3)
-              FLUTTER_VER="3.3.10"
-              ;;
-            2.*)
-              FLUTTER_VER="3.3.10"
-              ;;
-            *)
-              # Default ke versi stabil terbaru
-              FLUTTER_VER="3.22.4"
-              ;;
-          esac
-          
-          echo "flutter_version=$FLUTTER_VER" >> $GITHUB_OUTPUT
-          echo "✅ Using Flutter version: $FLUTTER_VER (for SDK $MIN_VER)"
-
-      - name: Setup Flutter
+      - name: Setup Flutter (Latest Stable)
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          flutter-version: ${{ steps.flutter_version.outputs.flutter_version }}
+          flutter-version: '3.24.5'
 
       - name: Enable flutter doctor verbose
         run: flutter doctor -v
+
+      - name: Create local.properties
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+          echo "ndk.dir=$ANDROID_HOME/ndk/27.0.12077973" >> android/local.properties
+
+      - name: Auto-update build.gradle for SDK 36
+        run: |
+          echo "🔧 Updating build.gradle files..."
+          
+          # Update app/build.gradle
+          if [ -f "android/app/build.gradle" ]; then
+            # Backup original
+            cp android/app/build.gradle android/app/build.gradle.bak
+            
+            # Update compileSdkVersion
+            sed -i 's/compileSdkVersion [0-9]*/compileSdkVersion 36/g' android/app/build.gradle
+            # Update targetSdkVersion
+            sed -i 's/targetSdkVersion [0-9]*/targetSdkVersion 36/g' android/app/build.gradle
+            # Update minSdkVersion
+            sed -i 's/minSdkVersion [0-9]*/minSdkVersion 21/g' android/app/build.gradle
+            # Update ndkVersion
+            sed -i 's/ndkVersion .*/ndkVersion "27.0.12077973"/g' android/app/build.gradle
+            # Update compileSdkPreview
+            sed -i 's/compileSdkPreview .*/compileSdkPreview "UpsideDownCake"/g' android/app/build.gradle
+            
+            echo "✅ Updated android/app/build.gradle"
+            cat android/app/build.gradle | grep -E "(compileSdk|targetSdk|minSdk|ndkVersion|compileSdkPreview)"
+          fi
+          
+          # Update android/build.gradle
+          if [ -f "android/build.gradle" ]; then
+            # Update Gradle version
+            sed -i 's/classpath .com.android.tools.build.gradle.*./classpath "com.android.tools.build:gradle:8.5.0"/g' android/build.gradle
+            # Update Kotlin version
+            sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "2.0.20"/g' android/build.gradle
+            
+            echo "✅ Updated android/build.gradle"
+          fi
+          
+          # Update gradle-wrapper.properties
+          if [ -f "android/gradle/wrapper/gradle-wrapper.properties" ]; then
+            sed -i 's/distributionUrl=.*/distributionUrl=https\\:\\/\\/services.gradle.org\\/distributions\\/gradle-8.5-all.zip/g' android/gradle/wrapper/gradle-wrapper.properties
+            echo "✅ Updated gradle-wrapper.properties"
+          fi
 
       - name: Clean and get packages
         run: |
@@ -107,8 +88,10 @@ jobs:
           flutter pub get
 
       - name: Fix Gradle wrapper permissions
-        run: chmod +x gradlew
-        working-directory: android
+        run: |
+          cd android
+          chmod +x gradlew
+          cd ..
 
       - name: Build APK release
         run: flutter build apk --release
