@@ -1,4 +1,4 @@
-name: Auto Build Flutter App
+name: Auto Build Flutter APK
 
 on:
   push:
@@ -11,32 +11,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Ambil Kode Repositori
+      - name: Ambil Kode (Checkout)
         uses: actions/checkout@v4
 
-      - name: Setup Java JDK (Kebutuhan Android)
+      - name: Siapkan Java JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Setup Flutter SDK (Otomatis Deteksi Versi)
+      - name: Deteksi dan Set up Flutter & Dart SDK
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          flutter-version: '' # Kosongkan agar otomatis mengikuti versi terbaru/pubspec
+          flutter-version-file: 'pubspec.yaml'
           cache: true
+          cache-key: "flutter-:os:-:channel:-:version:-:arch:-:hash:"
 
-      - name: Install Android SDK & NDK Otomatis
-        uses: android-actions/setup-android@v3
+      - name: Jalankan Flutter Doctor
+        run: flutter doctor -v
 
       - name: Ambil Dependensi (Pub Get)
         run: flutter pub get
 
-      - name: Jalankan Build APK Release
+      - name: Build Aplikasi (APK Release)
         run: flutter build apk --release
 
-      - name: Unggah Hasil Build APK
+      - name: Simpan Hasil Build (Artifact)
         uses: actions/upload-artifact@v4
         with:
           name: release-apk
