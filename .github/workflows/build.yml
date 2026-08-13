@@ -1,0 +1,56 @@
+name: Build APK Release
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      flutter-version:
+        description: 'Flutter version (contoh: 3.22.0, 3.19.0, latest)'
+        required: true
+        default: 'latest'
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          flutter-version: ${{ github.event.inputs.flutter-version }}
+
+      - name: Show Flutter version
+        run: flutter --version
+
+      - name: Flutter doctor
+        run: flutter doctor -v
+
+      - name: Get packages
+        run: |
+          flutter clean
+          flutter pub get
+
+      - name: Fix Gradle permissions
+        run: chmod +x gradlew
+        working-directory: android
+
+      - name: Build APK release
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: vyper-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
