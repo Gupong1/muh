@@ -24,7 +24,8 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          flutter-version-file: 'pubspec.yaml'
+          # Gunakan 'any' jika pubspec.yaml tidak spesifik, atau sebutkan versi cadangan jika gagal dibaca
+          flutter-version: 'any' 
           cache: true
           cache-key: "flutter-:os:-:channel:-:version:-:arch:-:hash:"
 
