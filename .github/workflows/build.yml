@@ -20,12 +20,12 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Deteksi dan Set up Flutter & Dart SDK
+      - name: Set up Flutter & Dart SDK
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          # Gunakan 'any' jika pubspec.yaml tidak spesifik, atau sebutkan versi cadangan jika gagal dibaca
-          flutter-version: 'any' 
+          # Membaca versi Dart SDK (^3.8.1) dari pubspec.yaml secara otomatis
+          dart-version-file: 'pubspec.yaml' 
           cache: true
           cache-key: "flutter-:os:-:channel:-:version:-:arch:-:hash:"
 
