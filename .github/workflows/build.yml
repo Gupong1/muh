@@ -19,7 +19,7 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Setup Android SDK with NDK
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
           packages: |
@@ -42,44 +42,21 @@ jobs:
           echo "sdk.dir=$ANDROID_HOME" > android/local.properties
           echo "ndk.dir=$ANDROID_HOME/ndk/27.0.12077973" >> android/local.properties
 
-      - name: Auto-update build.gradle for SDK 36
+      - name: Update build.gradle
         run: |
-          echo "🔧 Updating build.gradle files..."
-          
           # Update app/build.gradle
           if [ -f "android/app/build.gradle" ]; then
-            # Backup original
-            cp android/app/build.gradle android/app/build.gradle.bak
-            
-            # Update compileSdkVersion
             sed -i 's/compileSdkVersion [0-9]*/compileSdkVersion 36/g' android/app/build.gradle
-            # Update targetSdkVersion
-            sed -i 's/targetSdkVersion [0-9]*/targetSdkVersion 36/g' android/app/build.gradle
-            # Update minSdkVersion
-            sed -i 's/minSdkVersion [0-9]*/minSdkVersion 21/g' android/app/build.gradle
-            # Update ndkVersion
             sed -i 's/ndkVersion .*/ndkVersion "27.0.12077973"/g' android/app/build.gradle
-            # Update compileSdkPreview
-            sed -i 's/compileSdkPreview .*/compileSdkPreview "UpsideDownCake"/g' android/app/build.gradle
-            
-            echo "✅ Updated android/app/build.gradle"
-            cat android/app/build.gradle | grep -E "(compileSdk|targetSdk|minSdk|ndkVersion|compileSdkPreview)"
+            sed -i 's/targetSdkVersion [0-9]*/targetSdkVersion 36/g' android/app/build.gradle
+            sed -i 's/minSdkVersion [0-9]*/minSdkVersion 21/g' android/app/build.gradle
+            echo "✅ Updated app/build.gradle"
           fi
           
           # Update android/build.gradle
           if [ -f "android/build.gradle" ]; then
-            # Update Gradle version
             sed -i 's/classpath .com.android.tools.build.gradle.*./classpath "com.android.tools.build:gradle:8.5.0"/g' android/build.gradle
-            # Update Kotlin version
-            sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "2.0.20"/g' android/build.gradle
-            
             echo "✅ Updated android/build.gradle"
-          fi
-          
-          # Update gradle-wrapper.properties
-          if [ -f "android/gradle/wrapper/gradle-wrapper.properties" ]; then
-            sed -i 's/distributionUrl=.*/distributionUrl=https\\:\\/\\/services.gradle.org\\/distributions\\/gradle-8.5-all.zip/g' android/gradle/wrapper/gradle-wrapper.properties
-            echo "✅ Updated gradle-wrapper.properties"
           fi
 
       - name: Clean and get packages
@@ -87,10 +64,11 @@ jobs:
           flutter clean
           flutter pub get
 
-      - name: Fix Gradle wrapper permissions
+      - name: Fix Gradle wrapper
         run: |
           cd android
           chmod +x gradlew
+          ./gradlew --version
           cd ..
 
       - name: Build APK release
