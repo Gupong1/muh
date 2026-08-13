@@ -1,81 +1,43 @@
-name: Build APK Release
+name: Auto Build Flutter App
 
 on:
   push:
-    branches: [ main, master ]
-  workflow_dispatch:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Ambil Kode Repositori
         uses: actions/checkout@v4
 
-      - name: Setup Java
+      - name: Setup Java JDK (Kebutuhan Android)
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: |
-            platforms;android-36
-            build-tools;36.0.0
-            ndk;27.0.12077973
-            cmake;3.22.1
-
-      - name: Setup Flutter (Latest Stable)
+      - name: Setup Flutter SDK (Otomatis Deteksi Versi)
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          flutter-version: '3.24.5'
+          flutter-version: '' # Kosongkan agar otomatis mengikuti versi terbaru/pubspec
+          cache: true
 
-      - name: Enable flutter doctor verbose
-        run: flutter doctor -v
+      - name: Install Android SDK & NDK Otomatis
+        uses: android-actions/setup-android@v3
 
-      - name: Create local.properties
-        run: |
-          echo "sdk.dir=$ANDROID_HOME" > android/local.properties
-          echo "ndk.dir=$ANDROID_HOME/ndk/27.0.12077973" >> android/local.properties
+      - name: Ambil Dependensi (Pub Get)
+        run: flutter pub get
 
-      - name: Update build.gradle
-        run: |
-          # Update app/build.gradle
-          if [ -f "android/app/build.gradle" ]; then
-            sed -i 's/compileSdkVersion [0-9]*/compileSdkVersion 36/g' android/app/build.gradle
-            sed -i 's/ndkVersion .*/ndkVersion "27.0.12077973"/g' android/app/build.gradle
-            sed -i 's/targetSdkVersion [0-9]*/targetSdkVersion 36/g' android/app/build.gradle
-            sed -i 's/minSdkVersion [0-9]*/minSdkVersion 21/g' android/app/build.gradle
-            echo "✅ Updated app/build.gradle"
-          fi
-          
-          # Update android/build.gradle
-          if [ -f "android/build.gradle" ]; then
-            sed -i 's/classpath .com.android.tools.build.gradle.*./classpath "com.android.tools.build:gradle:8.5.0"/g' android/build.gradle
-            echo "✅ Updated android/build.gradle"
-          fi
-
-      - name: Clean and get packages
-        run: |
-          flutter clean
-          flutter pub get
-
-      - name: Fix Gradle wrapper
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew --version
-          cd ..
-
-      - name: Build APK release
+      - name: Jalankan Build APK Release
         run: flutter build apk --release
 
-      - name: Upload APK artifact
+      - name: Unggah Hasil Build APK
         uses: actions/upload-artifact@v4
         with:
-          name: vyper-release-apk
+          name: release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
