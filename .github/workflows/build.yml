@@ -23,20 +23,25 @@ jobs:
         id: read_flutter_version
         run: |
           # Baca environment sdk dari pubspec.yaml
-          SDK_LINE=$(grep -E "^environment:" -A 2 pubspec.yaml | grep "sdk:" | sed 's/.*sdk: "\(.*\)"/\1/' || echo "")
-          
-          # Ekstrak versi minimal
-          if [[ -n "$SDK_LINE" ]]; then
-            # Ambil angka versi minimal (contoh: ">=3.8.0 <4.0.0" -> "3.8.0")
-            MIN_VERSION=$(echo "$SDK_LINE" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-            echo "min_version=$MIN_VERSION" >> $GITHUB_OUTPUT
-            echo "full_sdk=$SDK_LINE" >> $GITHUB_OUTPUT
-            echo "✅ Found SDK requirement: $SDK_LINE"
-            echo "📌 Minimum version: $MIN_VERSION"
+          if [ -f "pubspec.yaml" ]; then
+            SDK_LINE=$(grep -E "^environment:" -A 2 pubspec.yaml | grep "sdk:" | sed 's/.*sdk: "\(.*\)"/\1/' || echo "")
+            
+            # Ekstrak versi minimal
+            if [[ -n "$SDK_LINE" ]]; then
+              MIN_VERSION=$(echo "$SDK_LINE" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+              echo "min_version=$MIN_VERSION" >> $GITHUB_OUTPUT
+              echo "full_sdk=$SDK_LINE" >> $GITHUB_OUTPUT
+              echo "✅ Found SDK requirement: $SDK_LINE"
+              echo "📌 Minimum version: $MIN_VERSION"
+            else
+              echo "min_version=3.0.0" >> $GITHUB_OUTPUT
+              echo "full_sdk=>=3.0.0" >> $GITHUB_OUTPUT
+              echo "⚠️ No SDK version found, using default 3.0.0"
+            fi
           else
             echo "min_version=3.0.0" >> $GITHUB_OUTPUT
             echo "full_sdk=>=3.0.0" >> $GITHUB_OUTPUT
-            echo "⚠️ No SDK version found, using default 3.0.0"
+            echo "⚠️ pubspec.yaml not found, using default 3.0.0"
           fi
 
       - name: Determine Flutter version
@@ -44,28 +49,43 @@ jobs:
         run: |
           MIN_VER="${{ steps.read_flutter_version.outputs.min_version }}"
           
-          # Mapping versi Flutter berdasarkan kebutuhan SDK
-          # Flutter 3.22.x = Dart 3.4.x
-          # Flutter 3.19.x = Dart 3.3.x
-          # Flutter 3.16.x = Dart 3.2.x
-          # Flutter 3.13.x = Dart 3.1.x
-          # Flutter 3.10.x = Dart 3.0.x
+          # Mapping versi Flutter yang tersedia di subosito/flutter-action
+          # List versi yang tersedia: https://github.com/subosito/flutter-action#supported-versions
           
-          case "$MIN_VER" in
-            3.8.*|3.9.*|3.10.*|3.11.*|3.12.*|3.13.*|3.14.*|3.15.*|3.16.*|3.17.*|3.18.*|3.19.*|3.20.*|3.21.*|3.22.*|3.23.*|3.24.*|3.25.*|3.26.*|3.27.*|3.28.*|3.29.*|3.30.*|3.31.*|3.32.*|3.33.*|3.34.*|3.35.*|3.36.*|3.37.*|3.38.*|3.39.*|3.40.*|3.41.*|3.42.*|3.43.*|3.44.*|3.45.*|3.46.*|3.47.*)
-              FLUTTER_VER="3.22.6"
+          # Extract major.minor version
+          MAJOR_MINOR=$(echo "$MIN_VER" | cut -d. -f1-2)
+          
+          case "$MAJOR_MINOR" in
+            3.22|3.23|3.24|3.25|3.26|3.27|3.28|3.29|3.30|3.31|3.32|3.33|3.34|3.35|3.36|3.37|3.38|3.39|3.40|3.41|3.42|3.43|3.44|3.45|3.46|3.47)
+              FLUTTER_VER="3.22.4"
               ;;
-            3.4.*|3.5.*|3.6.*|3.7.*)
-              FLUTTER_VER="3.22.6"
-              ;;
-            3.0.*|3.1.*|3.2.*|3.3.*)
+            3.19|3.20|3.21)
               FLUTTER_VER="3.19.6"
               ;;
-            2.*)
+            3.16|3.17|3.18)
               FLUTTER_VER="3.16.9"
               ;;
+            3.13|3.14|3.15)
+              FLUTTER_VER="3.13.9"
+              ;;
+            3.10|3.11|3.12)
+              FLUTTER_VER="3.10.6"
+              ;;
+            3.7|3.8|3.9)
+              FLUTTER_VER="3.7.12"
+              ;;
+            3.4|3.5|3.6)
+              FLUTTER_VER="3.3.10"
+              ;;
+            3.0|3.1|3.2|3.3)
+              FLUTTER_VER="3.3.10"
+              ;;
+            2.*)
+              FLUTTER_VER="3.3.10"
+              ;;
             *)
-              FLUTTER_VER="3.22.6"
+              # Default ke versi stabil terbaru
+              FLUTTER_VER="3.22.4"
               ;;
           esac
           
