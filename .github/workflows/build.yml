@@ -1,45 +1,52 @@
-name: Auto Build Flutter APK
+name: Build APK Release
 
 on:
   push:
-    branches: [ "main", "master" ]
-  pull_request:
-    branches: [ "main", "master" ]
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Ambil Kode (Checkout)
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Siapkan Java JDK
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Set up Flutter & Dart SDK
+      - name: Setup Flutter Master Channel
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
-          # Membaca versi Dart SDK (^3.8.1) dari pubspec.yaml secara otomatis
-          dart-version-file: 'pubspec.yaml' 
-          cache: true
-          cache-key: "flutter-:os:-:channel:-:version:-:arch:-:hash:"
+          channel: 'master'
+      
+      - name: Upgrade Flutter to Latest
+        run: |
+          flutter channel master
+          flutter upgrade
+          flutter --version
 
-      - name: Jalankan Flutter Doctor
+      - name: Enable flutter doctor verbose
         run: flutter doctor -v
 
-      - name: Ambil Dependensi (Pub Get)
-        run: flutter pub get
+      - name: Clean and get packages
+        run: |
+          flutter clean
+          flutter pub get
 
-      - name: Build Aplikasi (APK Release)
+      - name: Fix Gradle wrapper permissions
+        run: chmod +x gradlew
+        working-directory: android
+
+      - name: Build APK release
         run: flutter build apk --release
 
-      - name: Simpan Hasil Build (Artifact)
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-apk
+          name: xerion-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
